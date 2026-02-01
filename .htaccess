@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# Block direct access to profile_pictures folder
+RewriteCond %{REQUEST_URI} ^/api/uploads/profile_pictures/ [NC]
+RewriteRule ^ - [F,L]
+
+# Allow serve_image.php
+RewriteCond %{REQUEST_URI} ^/api/serve_image\.php$ [NC]
+RewriteRule ^ - [L]
+
+# Rewrite other requests to index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
