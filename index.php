@@ -5,12 +5,16 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/api/controllers/UserController.php';
 
 
 // -- CORS Headers --
-header('Content-Type: application/json');
-//header('Access-Control-Allow-Origin: https://holarsamaj.in'); // Your Angular app's domain
-header('Access-Control-Allow-Origin: http://localhost:4200'); // Your Angular app's domain
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Allow-Credentials: true');
+$allowedOrigins = [
+    'https://www.holarsamaj.in',
+    'https://holarsamaj.in'
+];
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array($origin, $allowedOrigins, true)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+}
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 
 
