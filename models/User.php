@@ -40,6 +40,15 @@ class User {
         return (bool) $stmt->fetch(PDO::FETCH_ASSOC); // Return true if email exists, false otherwise
     }
 
+    // Get user by mobile number exists
+    public function mobileExists() {
+        $query = "SELECT 1 FROM users WHERE mobile_number = :mobile_number LIMIT 1";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':mobile_number', $this->mobile_number);
+        $stmt->execute();
+
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC); // true if mobile exists, false otherwise
+    }
 
     // Update null role after completed details registration
     public function updateRole() {
@@ -93,65 +102,147 @@ class User {
     
 
     
-    public function getUserProfiles($page = 1, $perPage = 10) {
-        // Calculate the OFFSET based on the page number
-        $offset = ($page - 1) * $perPage;
+    // public function getUserProfiles($page = 1, $perPage = 10) {
+    //     // Calculate the OFFSET based on the page number
+    //     $offset = ($page - 1) * $perPage;
     
-        // SQL query to fetch user profiles with pagination
+    //     // SQL query to fetch user profiles with pagination
+    //     $query = "
+    //         SELECT 
+    //             u.user_id,
+    //             uph.photo_url,
+    //             CONCAT(up.first_name, ' ', up.last_name) AS full_name,
+    //             TIMESTAMPDIFF(YEAR, up.date_of_birth, CURDATE()) AS age,
+    //             up.religion,
+    //             up.caste,
+    //             up.occupation,
+    //             up.country,
+    //             up.state
+    //         FROM users u
+    //         JOIN user_photos uph ON u.user_id = uph.user_id
+    //         JOIN user_profiles up ON u.user_id = up.user_id
+    //         WHERE uph.is_primary = 1
+    //         LIMIT :perPage OFFSET :offset
+    //     ";
+    
+    //     // Prepare the query
+    //     $stmt = $this->db->prepare($query);
+    
+    //     // Bind the parameters
+    //     $stmt->bindParam(':perPage', $perPage, PDO::PARAM_INT);
+    //     $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+    
+    //     // Execute the query
+    //     $stmt->execute();
+    
+    //     // Fetch the paginated records
+    //     $userProfiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    //     // Query to count the total number of records
+    //     $countQuery = "
+    //         SELECT COUNT(*) AS total_records
+    //         FROM users u
+    //         JOIN user_photos uph ON u.user_id = uph.user_id
+    //         JOIN user_profiles up ON u.user_id = up.user_id
+    //         WHERE uph.is_primary = 1
+    //     ";
+    
+    //     // Prepare and execute the count query
+    //     $countStmt = $this->db->prepare($countQuery);
+    //     $countStmt->execute();
+    
+    //     // Fetch the total count of records
+    //     $totalCount = $countStmt->fetch(PDO::FETCH_ASSOC)['total_records'];
+    
+    //     // Return the paginated results and the total count
+    //     return [
+    //         'status' => 'SUCCESS',
+    //         'data' => $userProfiles,
+    //         'totalRecords' => $totalCount
+    //     ];
+    // }
+    
+    public function getUserProfiles($page = 1, $perPage = 8, $filters = [])
+    {
+        $offset = ($page - 1) * $perPage;
+
+        $conditions = [];
+        $params = [];
+
+        if (!empty($filters['gender'])) {
+            $conditions[] = "p.gender = :gender";
+            $params[':gender'] = $filters['gender'];
+        }
+
+        if (!empty($filters['location'])) {
+            $conditions[] = "LOWER(p.current_address) LIKE :location";
+            $params[':location'] = '%' . strtolower($filters['location']) . '%';
+        }
+
+        if (!empty($filters['education'])) {
+            $conditions[] = "p.education = :education";
+            $params[':education'] = $filters['education'];
+        }
+
+        if (!empty($filters['profession'])) {
+            $conditions[] = "LOWER(p.job) LIKE :profession";
+            $params[':profession'] = '%' . strtolower($filters['profession']) . '%';
+        }
+
+        $whereSql = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
+
+        // ✅ MAIN DATA QUERY
         $query = "
             SELECT 
                 u.user_id,
-                uph.photo_url,
-                CONCAT(up.first_name, ' ', up.last_name) AS full_name,
-                TIMESTAMPDIFF(YEAR, up.date_of_birth, CURDATE()) AS age,
-                up.religion,
-                up.caste,
-                up.occupation,
-                up.country,
-                up.state
+                p.full_name,
+                p.education,
+                p.job AS profession,
+                p.current_address AS location,
+                p.annual_income AS income
             FROM users u
-            JOIN user_photos uph ON u.user_id = uph.user_id
-            JOIN user_profiles up ON u.user_id = up.user_id
-            WHERE uph.is_primary = 1
+            JOIN profiles p ON u.user_id = p.user_id
+            $whereSql
             LIMIT :perPage OFFSET :offset
         ";
-    
-        // Prepare the query
+
         $stmt = $this->db->prepare($query);
-    
-        // Bind the parameters
-        $stmt->bindParam(':perPage', $perPage, PDO::PARAM_INT);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-    
-        // Execute the query
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $stmt->bindValue(':perPage', (int)$perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
         $stmt->execute();
-    
-        // Fetch the paginated records
-        $userProfiles = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-        // Query to count the total number of records
+
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // ✅ COUNT QUERY (THIS WAS MISSING)
         $countQuery = "
-            SELECT COUNT(*) AS total_records
+            SELECT COUNT(*) 
             FROM users u
-            JOIN user_photos uph ON u.user_id = uph.user_id
-            JOIN user_profiles up ON u.user_id = up.user_id
-            WHERE uph.is_primary = 1
+            JOIN profiles p ON u.user_id = p.user_id
+            $whereSql
         ";
-    
-        // Prepare and execute the count query
+
         $countStmt = $this->db->prepare($countQuery);
+        foreach ($params as $key => $value) {
+            $countStmt->bindValue($key, $value);
+        }
         $countStmt->execute();
-    
-        // Fetch the total count of records
-        $totalCount = $countStmt->fetch(PDO::FETCH_ASSOC)['total_records'];
-    
-        // Return the paginated results and the total count
+
+        $totalRecords = (int)$countStmt->fetchColumn();
+
         return [
             'status' => 'SUCCESS',
-            'data' => $userProfiles,
-            'totalRecords' => $totalCount
+            'data' => $data,
+            'totalRecords' => $totalRecords
         ];
     }
-    
+
+
+
+
     
 }

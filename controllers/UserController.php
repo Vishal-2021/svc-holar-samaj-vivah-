@@ -17,7 +17,7 @@ class UserController {
         $data = json_decode($data, true);
 
         if (empty($data['email']) || empty($data['password']) || empty($data['mobile_number'])) {
-            echo json_encode(['message' => 'Email Address, Mobile Number and password are required']);
+            echo json_encode(['status' => 'FAILED', 'message' => 'Email Address, Mobile Number and password are required']);
             return;
         }
 
@@ -33,6 +33,13 @@ class UserController {
         if ($this->userModel->emailExists()) {
           http_response_code(400);  
           echo json_encode(['status' => 'FAILED', 'message' => 'Email already exists.']);
+          return;
+        }
+
+         // Check if the mobile no already exists
+        if ($this->userModel->mobileExists()) {
+          http_response_code(400);  
+          echo json_encode(['status' => 'FAILED', 'message' => 'Mobile no already exists.']);
           return;
         }
 
@@ -62,31 +69,41 @@ class UserController {
         }
     }
 
+      // ✅ REQUIRED FIELD
+    if (!isset($data['user_id'])) {
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'FAILED',
+            'message' => 'user_id is required'
+        ]);
+        return;
+    }
+
     // Map request data to the profile model
-    $this->userProfileModel->userId          = $data['userId'];
-    $this->userProfileModel->createdFor      = $data['createdFor'] ?? 'Self';
-    $this->userProfileModel->fullName        = $data['fullName'];
+    $this->userProfileModel->userId          = $data['user_id'];
+    $this->userProfileModel->createdFor      = $data['created_for'] ?? 'Self';
+    $this->userProfileModel->fullName        = $data['full_name'];
     $this->userProfileModel->gender          = $data['gender'];
-    $this->userProfileModel->maritalStatus   = $data['maritalStatus'] ?? 'Single';
-    $this->userProfileModel->dateOfBirth     = $data['dateOfBirth'] ?? null;
-    $this->userProfileModel->birthTime       = $data['birthTime'] ?? null;
-    $this->userProfileModel->birthDay        = $data['birthDay'] ?? null;
-    $this->userProfileModel->birthPlace      = $data['birthPlace'] ?? null;
-    $this->userProfileModel->heightFeet      = $data['heightFeet'] ?? null;
-    $this->userProfileModel->heightInches    = $data['heightInches'] ?? null;
-    $this->userProfileModel->weightKg        = $data['weightKg'] ?? null;
+    $this->userProfileModel->maritalStatus   = $data['marital_status'] ?? 'Single';
+    $this->userProfileModel->dateOfBirth     = $data['date_of_birth'] ?? null;
+    $this->userProfileModel->birthTime       = $data['birth_time'] ?? null;
+    $this->userProfileModel->birthDay        = $data['birth_day'] ?? null;
+    $this->userProfileModel->birthPlace      = $data['birth_place'] ?? null;
+    $this->userProfileModel->heightFeet      = $data['height_feet'] ?? null;
+    $this->userProfileModel->heightInches    = $data['height_inches'] ?? null;
+    $this->userProfileModel->weightKg        = $data['weight_kg'] ?? null;
     $this->userProfileModel->complexion      = $data['complexion'] ?? null;
-    $this->userProfileModel->bloodGroup      = $data['bloodGroup'] ?? null;
+    $this->userProfileModel->bloodGroup      = $data['blood_group'] ?? null;
     $this->userProfileModel->education       = $data['education'] ?? null;
     $this->userProfileModel->job             = $data['job'] ?? null;
-    $this->userProfileModel->annualIncome    = $data['annualIncome'] ?? null;
-    $this->userProfileModel->fatherName      = $data['fatherName'] ?? null;
-    $this->userProfileModel->fatherJob       = $data['fatherJob'] ?? null;
-    $this->userProfileModel->motherName      = $data['motherName'] ?? null;
-    $this->userProfileModel->motherJob       = $data['motherJob'] ?? null;
-    $this->userProfileModel->nativePlace     = $data['nativePlace'] ?? null;
-    $this->userProfileModel->currentAddress  = $data['currentAddress'] ?? null;
-    $this->userProfileModel->otherRelatives  = $data['otherRelatives'] ?? null;
+    $this->userProfileModel->annualIncome    = $data['annual_income'] ?? null;
+    $this->userProfileModel->fatherName      = $data['father_name'] ?? null;
+    $this->userProfileModel->fatherJob       = $data['father_job'] ?? null;
+    $this->userProfileModel->motherName      = $data['mother_name'] ?? null;
+    $this->userProfileModel->motherJob       = $data['mother_job'] ?? null;
+    $this->userProfileModel->nativePlace     = $data['native_place'] ?? null;
+    $this->userProfileModel->currentAddress  = $data['current_address'] ?? null;
+    $this->userProfileModel->otherRelatives  = $data['other_relatives'] ?? null;
     $this->userProfileModel->expectations    = $data['expectations'] ?? null;
     $this->userProfileModel->status          = $data['status'] ?? 'Active';
 
@@ -191,10 +208,19 @@ class UserController {
         // Check if the user exists
         $user = $this->userModel->getUserByEmail();
         if ($user && password_verify($data['password'], $user['password_hash'])) {
+           
             // Simply return a success message as there's no JWT now
-            echo json_encode(['message' => 'Login successful', 'role' => $user['role']]);
-        } else {
-            echo json_encode(['message' => 'Invalid credentials']);
+            echo json_encode([
+                'status' => 'SUCCESS', 
+                'message' => 'Login successful', 
+                'user'=>[ 
+                    'user_id' => $user['user_id'],
+                    'email'   => $user['email'],
+                    'role' => $user['role']
+                    ]
+                ]);
+        } else {                
+            echo json_encode(['status' => 'FAILED','message' => 'Invalid credentials']);
         }
     }
 
@@ -227,18 +253,42 @@ class UserController {
         }
     }
 
-   // Serach User Profile
-   public function searchProfiles($data) {
-    $data = json_decode($data, true);
+    // Serach User Profile
+    //     public function searchProfiles($data) {
+    //         $data = json_decode($data, true);
 
-    $userProfile = $this->userModel->getUserProfiles($data['page'],$data['perpage']);
+    //         $userProfile = $this->userModel->getUserProfiles($data['page'],$data['perpage']);
 
-    if ($userProfile) {
-        echo json_encode($userProfile);
-    } else {
-        echo json_encode(['status' => 'FAILED', 'message' => 'User not found.']);
+    //         if ($userProfile) {
+    //             echo json_encode($userProfile);
+    //         } else {
+    //             echo json_encode(['status' => 'FAILED', 'message' => 'User not found.']);
+    //         }
+    //     }
+
+    // Search User Profile (WITH FILTERS)
+    public function searchProfiles($data) {
+
+        if (is_string($data)) {
+            $data = json_decode($data, true);
+        }
+
+        $page     = $data['page'] ?? 1;
+        $perPage  = $data['perPage'] ?? 8;
+
+        $filters = [
+            'gender'     => $data['gender'] ?? null,
+            'location'   => $data['location'] ?? null,
+            'education'  => $data['education'] ?? null,
+            'profession' => $data['profession'] ?? null,
+            // 'minAge'     => $data['minAge'] ?? null,
+            // 'maxAge'     => $data['maxAge'] ?? null
+        ];
+
+        $result = $this->userModel->getUserProfiles($page, $perPage, $filters);
+
+        echo json_encode($result);
     }
-}
 
 
 }
