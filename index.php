@@ -50,8 +50,8 @@ switch ($method) {
         if ($path === '/user/register') {
             $userController = new UserController($db);
             $userController->register($requestBody);
-        } 
-        
+        }
+
         if ($path === '/user/login') {
             $userController = new UserController($db);
             $userController->login($requestBody);
@@ -60,14 +60,14 @@ switch ($method) {
         if ($path === '/user/profile') {
             $userController = new UserController($db);
             $userController->CreateProfile($requestBody);
-        } 
+        }
 
         if ($path === '/user/profile/photo') {
             $userController = new UserController($db);
             $userController->UploadProfilePhoto(); // no neet to pass post file variable that is global
-        } 
- 
-        
+        }
+
+
         if ($path === '/user/search') {
             $userController = new UserController($db);
             $userController->searchProfiles($requestBody);
@@ -75,14 +75,14 @@ switch ($method) {
         break;
 
     case 'GET':
-     
+
         if ($path === '/user/profile') {
-             if (isset($_GET['id'])) {
-              $userId = $_GET['id'];
-              $userController = new UserController($db);
-              $userController->getUserProfile($userId);
+            if (isset($_GET['id'])) {
+                $userId = $_GET['id'];
+                $userController = new UserController($db);
+                $userController->getUserProfile($userId);
             }
-        } 
+        }
         break;
 
     case 'PUT':
@@ -97,7 +97,3 @@ switch ($method) {
         echo json_encode(['message' => 'Method not allowed']);
         break;
 }
-
-
-
-?>
