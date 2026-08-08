@@ -210,8 +210,23 @@ class UserController
         $user = $this->userModel->getUserByEmail();
         if ($user && password_verify($data['password'], $user['password_hash'])) {
 
-            // Simply return a success message as there's no JWT now
+            // Create random token
+            $token = bin2hex(random_bytes(32));
+            // Store only token hash
+            $hash = hash("sha256", $token);
+            // Token valid for 1 day
+            $expiry = date("Y-m-d H:i:s", strtotime("+1 day"));
+    
+            // Update the user's token in the database
+            $this->userModel->api_token_hash = $hash;
+            $this->userModel->token_expiry = $expiry;
+            $this->userModel->user_id = $user['user_id'];
+            if (!$this->userModel->UpdateToken())
+                throw new Exception("Failed to update token");
+
             echo json_encode([
+                'token' => $token,
+                'expires' => $expiry,
                 'status' => 'SUCCESS',
                 'message' => 'Login successful',
                 'user' => [

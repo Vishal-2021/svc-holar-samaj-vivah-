@@ -1,6 +1,7 @@
 <?php
 // Include necessary files
 require_once $_SERVER['DOCUMENT_ROOT'] . '/api/config/Database.php';
+require_once $_SERVER['DOCUMENT_ROOT'] . '/api/config/Auth.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/api/controllers/UserController.php';
 
 
@@ -41,6 +42,15 @@ error_log("Request Path: $path");
 // Create a database connection
 $database = new Database();
 $db = $database->getConnection();
+
+if($path === '/user/register' || $path === '/user/login') {
+    // No authentication required for registration and login
+} else {
+    // Authenticate token for other routes
+    $auth = new Auth($db);
+    $auth->authenticate();
+}
+
 
 
 // --- Basic routing ---
