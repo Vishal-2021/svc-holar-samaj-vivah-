@@ -341,16 +341,36 @@ class UserController
 
 
     // GET /api/interests
-    public function getInterests($userId)
+    public function getReceivedInterests($userId)
     {
-        $result = $this->messageModel->getInterests($userId);
+        $result = $this->messageModel->getReceivedInterests($userId);
 
         if ($result === false) {
             http_response_code(500);
 
             echo json_encode([
                 'status' => 'FAILED',
-                'message' => 'Failed to fetch interests'
+                'message' => 'Failed to fetch Received interests'
+            ]);
+
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'data' => $result
+        ]);
+    }
+    public function getSentInterests($userId)
+    {
+        $result = $this->messageModel->getSentInterests($userId);
+
+        if ($result === false) {
+            http_response_code(500);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to fetch sent interests'
             ]);
 
             return;
@@ -456,14 +476,9 @@ class UserController
 
 
     // GET /api/messages/:user_id
-    public function getConversation($data, $otherUserId)
+    public function getConversation($senderUserId, $receiverUserId)
     {
-        $data = json_decode($data, true);
-
-        $userId = $data['user_id'];
-        $otherUserId = (int) $otherUserId;
-
-        $messages = $this->messageModel->getConversation($userId, $otherUserId);
+        $messages = $this->messageModel->getConversation($senderUserId, $receiverUserId);
 
         if ($messages === false) {
             http_response_code(500);
@@ -476,7 +491,7 @@ class UserController
             return;
         }
 
-        $this->messageModel->markAsRead($otherUserId, $userId);
+        $this->messageModel->markAsRead($senderUserId, $receiverUserId);
 
         echo json_encode([
             'status' => 'SUCCESS',

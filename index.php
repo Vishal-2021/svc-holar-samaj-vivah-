@@ -101,11 +101,11 @@ switch ($method) {
                 $userController->getUserProfile($userId);
             }
         }
-        if ($path === '/interests') {
+        if ($path === '/interests/sent') {
             if (isset($_GET['id'])) {
                 $userId = $_GET['id'];
                 $userController = new UserController($db);
-                $userController->getInterests($userId);
+                $userController->getSentInterests($userId);
             }
         }
 
@@ -117,20 +117,21 @@ switch ($method) {
             }
         }
 
-        if ($path === '/messages/unread') {
-            if (isset($_GET['id'])) {
-                $userId = $_GET['id'];
-                $userController = new UserController($db);
-                $userController->getUnreadCount($userId);
-            }
-        }
+        // if ($path === '/messages/unread') {
+        //     if (isset($_GET['id'])) {
+        //         $userId = $_GET['id'];
+        //         $userController = new UserController($db);
+        //         $userController->getUnreadCount($userId);
+        //     }
+        // }
 
-        if (preg_match('#^/messages/([0-9]+)$#', $path, $matches)) {
+        if (preg_match('#^/messages/([0-9]+)/([0-9]+)/?$#', $path, $matches)) {
 
-            $otherUserId = (int) $matches[1];
+            $senderUserId   = (int) $matches[1];
+            $receiverUserId = (int) $matches[2];
 
             $userController = new UserController($db);
-            $userController->getConversation($otherUserId);
+            $userController->getConversation($senderUserId, $receiverUserId);
         }
 
 

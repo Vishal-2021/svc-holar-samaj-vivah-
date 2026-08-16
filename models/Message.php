@@ -90,7 +90,7 @@ class Message
     /**
      * Get conversation between two users
      */
-    public function getConversation($userId, $otherUserId)
+    public function getConversation($senderUserId, $receiverUserId)
     {
         try {
 
@@ -105,13 +105,13 @@ class Message
                 FROM messages
                 WHERE
                     (
-                        sender_id = :user_id
-                        AND receiver_id = :other_user_id
+                        sender_id = :sender_user_id
+                        AND receiver_id = :receiver_user_id
                     )
                     OR
                     (
-                        sender_id = :other_user_id
-                        AND receiver_id = :user_id
+                        sender_id = :receiver_user_id
+                        AND receiver_id = :sender_user_id
                     )
                 ORDER BY created_at ASC
             ";
@@ -119,14 +119,14 @@ class Message
             $stmt = $this->db->prepare($query);
 
             $stmt->bindValue(
-                ':user_id',
-                $userId,
+                ':sender_user_id',
+                $senderUserId,
                 PDO::PARAM_INT
             );
 
             $stmt->bindValue(
-                ':other_user_id',
-                $otherUserId,
+                ':receiver_user_id',
+                $receiverUserId,
                 PDO::PARAM_INT
             );
 
@@ -148,7 +148,7 @@ class Message
     /**
      * Mark messages as read
      */
-    public function markAsRead($senderId, $receiverId)
+    public function markAsRead($senderUserId, $receiverUserId)
     {
         try {
 
@@ -165,13 +165,13 @@ class Message
 
             $stmt->bindValue(
                 ':sender_id',
-                $senderId,
+                $senderUserId,
                 PDO::PARAM_INT
             );
 
             $stmt->bindValue(
                 ':receiver_id',
-                $receiverId,
+                $receiverUserId,
                 PDO::PARAM_INT
             );
 
@@ -423,66 +423,18 @@ class Message
      *
      * GET /api/interests
      */
-    public function getInterests($userId)
-    {
-        try {
-
-            $query = "
-                SELECT
-                    i.id,
-                    i.sender_id,
-                    i.receiver_id,
-                    i.status,
-                    i.created_at
-                FROM interests i
-                WHERE
-                    i.sender_id = :user_id
-                    OR i.receiver_id = :user_id
-                ORDER BY i.created_at DESC
-            ";
-
-            $stmt = $this->db->prepare($query);
-
-            $stmt->bindValue(
-                ':user_id',
-                $userId,
-                PDO::PARAM_INT
-            );
-
-            $stmt->execute();
-
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        } catch (PDOException $e) {
-
-            error_log(
-                "Message::getInterests Error: " . $e->getMessage()
-            );
-
-            return false;
-        }
-    }
-
-
-    /**
-     * Get pending interests received by user
-     */
     public function getReceivedInterests($userId)
     {
         try {
 
             $query = "
-                SELECT
-                    i.id,
-                    i.sender_id,
-                    i.receiver_id,
-                    i.status,
-                    i.created_at
-                FROM interests i
-                WHERE
-                    i.receiver_id = :user_id
-                    AND i.status = 'pending'
-                ORDER BY i.created_at DESC
+               SELECT *
+                FROM profiles AS p
+                JOIN photos AS ph
+                    ON p.user_id = ph.user_id
+                LEFT JOIN interests AS i
+                    ON i.sender_id = p.user_id  
+                   WHERE  i.receiver_id = :user_id 
             ";
 
             $stmt = $this->db->prepare($query);
@@ -506,4 +458,42 @@ class Message
             return false;
         }
     }
+
+     public function getSentInterests($userId)
+    {
+        try {
+
+            $query = "
+               SELECT *
+                FROM profiles AS p
+                JOIN photos AS ph
+                    ON p.user_id = ph.user_id
+                LEFT JOIN interests AS i
+                    ON i.receiver_id = p.user_id  
+                   WHERE  i.sender_id = :user_id 
+            ";
+
+            $stmt = $this->db->prepare($query);
+
+            $stmt->bindValue(
+                ':user_id',
+                $userId,
+                PDO::PARAM_INT
+            );
+
+            $stmt->execute();
+
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        } catch (PDOException $e) {
+
+            error_log(
+                "Message::getSentInterests Error: " . $e->getMessage()
+            );
+
+            return false;
+        }
+    }
+
+
 }
