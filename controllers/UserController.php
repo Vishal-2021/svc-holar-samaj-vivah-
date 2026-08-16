@@ -1,17 +1,20 @@
 <?php
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/UserProfile.php';
+require_once __DIR__ . '/../models/Message.php';
 class UserController
 {
     private $db;
     private $userModel;
     private $userProfileModel;
+    private $messageModel;
 
     public function __construct($db)
     {
         $this->db = $db;
         $this->userModel = new User($db);
         $this->userProfileModel = new UserProfile($db);
+        $this->messageModel = new Message($db);
     }
 
     // User Basic Registration 
@@ -216,7 +219,7 @@ class UserController
             $hash = hash("sha256", $token);
             // Token valid for 1 day
             $expiry = date("Y-m-d H:i:s", strtotime("+1 day"));
-    
+
             // Update the user's token in the database
             $this->userModel->api_token_hash = $hash;
             $this->userModel->token_expiry = $expiry;
@@ -252,23 +255,6 @@ class UserController
         }
     }
 
-    // Update User Profile
-    public function updateProfile($data)
-    {
-        $data = json_decode($data, true);
-
-        $user_id = $data['user_id'];
-        $this->userProfileModel->first_name = $data['first_name'];
-        $this->userProfileModel->last_name = $data['last_name'];
-        $this->userProfileModel->gender = $data['gender'];
-        $this->userProfileModel->date_of_birth = $data['date_of_birth'];
-
-        if ($this->userProfileModel->updateProfile($user_id)) {
-            echo json_encode(['message' => 'Profile updated successfully']);
-        } else {
-            echo json_encode(['message' => 'Profile update failed']);
-        }
-    }
 
 
     // Search User Profile (WITH FILTERS)
@@ -294,5 +280,207 @@ class UserController
         $result = $this->userModel->getUserProfiles($page, $perPage, $filters);
 
         echo json_encode($result);
+    }
+
+
+    // ------------------------------------ New added methods for Interests and Messages ------------------------------------
+
+    // POST /api/interests
+    public function sendInterest($data)
+    {
+
+        $data = json_decode($data, true);
+
+        $senderId = $data['sender_id'];
+        $receiverId = $data['receiver_id'];
+
+        if (!$data || empty($receiverId)) {
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'receiver_id is required'
+            ]);
+
+            return;
+        }
+
+        if ($senderId == $receiverId) {
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'You cannot send interest to yourself'
+            ]);
+
+            return;
+        }
+
+        $this->messageModel->senderId = $senderId;
+        $this->messageModel->receiverId = $receiverId;
+
+        $result = $this->messageModel->sendInterest();
+
+        if ($result === false) {
+            http_response_code(500);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to send interest'
+            ]);
+
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'message' => $result['message'],
+            'interest_id' => $result['id']
+        ]);
+    }
+
+
+    // GET /api/interests
+    public function getInterests($userId)
+    {
+        $result = $this->messageModel->getInterests($userId);
+
+        if ($result === false) {
+            http_response_code(500);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to fetch interests'
+            ]);
+
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'data' => $result
+        ]);
+    }
+
+
+    // PUT /api/interests/:id
+    public function updateInterest($interestId, $data)
+    {
+        $data = json_decode($data, true);
+        $status = $data['status'] ?? null;
+
+        if (!in_array($status, ['accepted', 'rejected'], true)) {
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Status must be accepted or rejected'
+            ]);
+
+            return;
+        }
+
+        $result = $this->messageModel->updateInterest($interestId, $status);
+
+        if (!$result) {
+            http_response_code(404);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Interest not found or cannot be updated'
+            ]);
+
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'message' => 'Interest ' . $status . ' successfully'
+        ]);
+    }
+
+
+    // POST /api/messages
+    public function sendMessage($data)
+    {
+        $data = json_decode($data, true);
+
+        $senderId = $data['sender_id'];
+        $receiverId = $data['receiver_id'];
+
+        if (!$data || empty($receiverId) || empty(trim($data['message'] ?? ''))) {
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'receiver_id and message are required'
+            ]);
+
+            return;
+        }
+
+        if ($senderId == $receiverId) {
+            http_response_code(400);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'You cannot message yourself'
+            ]);
+
+            return;
+        }
+
+        $this->messageModel->senderId = $senderId;
+        $this->messageModel->receiverId = $receiverId;
+        $this->messageModel->message = trim($data['message']);
+
+        $messageId = $this->messageModel->sendMessage();
+
+        if (!$messageId) {
+            http_response_code(500);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to send message'
+            ]);
+
+            return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'message' => 'Message sent successfully',
+            'message_id' => $messageId
+        ]);
+    }
+
+
+    // GET /api/messages/:user_id
+    public function getConversation($data, $otherUserId)
+    {
+        $data = json_decode($data, true);
+
+        $userId = $data['user_id'];
+        $otherUserId = (int) $otherUserId;
+
+        $messages = $this->messageModel->getConversation($userId, $otherUserId);
+
+        if ($messages === false) {
+            http_response_code(500);
+
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to fetch conversation'
+            ]);
+
+            return;
+        }
+
+        $this->messageModel->markAsRead($otherUserId, $userId);
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'data' => $messages
+        ]);
     }
 }

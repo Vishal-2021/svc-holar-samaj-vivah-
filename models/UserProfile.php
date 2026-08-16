@@ -154,7 +154,7 @@ class UserProfile {
    // Get the user profile by user ID
     public function getProfileByUserId($user_id) {
         try {   
-        $query = "SELECT * FROM profiles WHERE user_id = :user_id LIMIT 1";
+        $query = "SELECT * FROM profiles as p join photos as ph on p.user_id = ph.user_id WHERE p.user_id = :user_id";
         $stmt = $this->db->prepare($query);
         $stmt->bindParam(':user_id', $user_id);
         $stmt->execute();

@@ -15,7 +15,7 @@ if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: {$origin}");
 }
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, X-Authorization');
 
 
 
@@ -43,7 +43,7 @@ error_log("Request Path: $path");
 $database = new Database();
 $db = $database->getConnection();
 
-if($path === '/user/register' || $path === '/user/login') {
+if ($path === '/user/register' || $path === '/user/login') {
     // No authentication required for registration and login
 } else {
     // Authenticate token for other routes
@@ -77,10 +77,18 @@ switch ($method) {
             $userController->UploadProfilePhoto(); // no neet to pass post file variable that is global
         }
 
-
         if ($path === '/user/search') {
             $userController = new UserController($db);
             $userController->searchProfiles($requestBody);
+        }
+        if ($path === '/interests') {
+
+            $userController = new UserController($db);
+            $userController->sendInterest($requestBody);
+        }
+        if ($path === '/messages') {
+            $userController = new UserController($db);
+            $userController->sendMessage($requestBody);
         }
         break;
 
@@ -93,13 +101,56 @@ switch ($method) {
                 $userController->getUserProfile($userId);
             }
         }
+        if ($path === '/interests') {
+            if (isset($_GET['id'])) {
+                $userId = $_GET['id'];
+                $userController = new UserController($db);
+                $userController->getInterests($userId);
+            }
+        }
+
+        if ($path === '/interests/received') {
+            if (isset($_GET['id'])) {
+                $userId = $_GET['id'];
+                $userController = new UserController($db);
+                $userController->getReceivedInterests($userId);
+            }
+        }
+
+        if ($path === '/messages/unread') {
+            if (isset($_GET['id'])) {
+                $userId = $_GET['id'];
+                $userController = new UserController($db);
+                $userController->getUnreadCount($userId);
+            }
+        }
+
+        if (preg_match('#^/messages/([0-9]+)$#', $path, $matches)) {
+
+            $otherUserId = (int) $matches[1];
+
+            $userController = new UserController($db);
+            $userController->getConversation($otherUserId);
+        }
+
+
+
+
         break;
 
     case 'PUT':
 
-        if ($path === '/user/update') {
+        // if ($path === '/user/update') {
+        //     $userController = new UserController($db);
+        //     $userController->updateProfile($requestBody);
+        // }
+        // break;
+        if (preg_match('#^/interests/([0-9]+)$#', $path, $matches)) {
+
+            $interestId = (int) $matches[1];
+
             $userController = new UserController($db);
-            $userController->updateProfile($requestBody);
+            $userController->updateInterest($interestId, $requestBody);
         }
         break;
 
