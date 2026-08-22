@@ -8,14 +8,15 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/api/controllers/UserController.php';
 // -- CORS Headers --
 $allowedOrigins = [
     'https://www.holarsamaj.in',
-    'https://holarsamaj.in'
+    'https://holarsamaj.in',
+    'http://localhost:4200'
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array($origin, $allowedOrigins, true)) {
     header("Access-Control-Allow-Origin: {$origin}");
 }
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 
 

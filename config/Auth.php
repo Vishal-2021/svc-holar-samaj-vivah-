@@ -13,12 +13,12 @@ class Auth
     {
         $headers = getallheaders();
 
-        if (!isset($headers['X-Authorization'])) {
+        if (!isset($headers['Authorization'])) {
             http_response_code(401);
             exit("Token required");
         }
 
-        $token = $headers['X-Authorization'];
+        $token = $headers['Authorization'];
 
         // Hash received token
         $hash = hash("sha256", $token);
