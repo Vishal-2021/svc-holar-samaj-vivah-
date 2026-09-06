@@ -266,15 +266,14 @@ class UserController
         }
 
         $page     = $data['page'] ?? 1;
-        $perPage  = $data['perPage'] ?? 8;
+        $perPage  = $data['perPage'] ?? 9;
 
         $filters = [
             'gender'     => $data['gender'] ?? null,
-            'location'   => $data['location'] ?? null,
-            'education'  => $data['education'] ?? null,
-            'profession' => $data['profession'] ?? null,
-            // 'minAge'     => $data['minAge'] ?? null,
-            // 'maxAge'     => $data['maxAge'] ?? null
+            'minAge'     => $data['minAge'] ?? null,
+            'maxAge'     => $data['maxAge'] ?? null,
+            'minIncome'     => $data['minIncome'] ?? null,
+            'maxIncome'     => $data['maxIncome'] ?? null,
         ];
 
         $result = $this->userModel->getUserProfiles($page, $perPage, $filters);

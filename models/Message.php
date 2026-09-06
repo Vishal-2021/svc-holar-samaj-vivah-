@@ -253,21 +253,9 @@ class Message
             ";
 
             $checkStmt = $this->db->prepare($checkQuery);
-
-            $checkStmt->bindValue(
-                ':sender_id',
-                $this->senderId,
-                PDO::PARAM_INT
-            );
-
-            $checkStmt->bindValue(
-                ':receiver_id',
-                $this->receiverId,
-                PDO::PARAM_INT
-            );
-
+            $checkStmt->bindValue(':sender_id', $this->senderId, PDO::PARAM_INT);
+            $checkStmt->bindValue(':receiver_id',$this->receiverId,PDO::PARAM_INT);
             $checkStmt->execute();
-
             $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
 
 
@@ -292,18 +280,13 @@ class Message
                 ";
 
                 $updateStmt = $this->db->prepare($updateQuery);
-
-                $updateStmt->bindValue(
-                    ':id',
-                    $existing['id'],
-                    PDO::PARAM_INT
-                );
+                $updateStmt->bindValue(':id',$existing['id'],PDO::PARAM_INT);
 
                 if ($updateStmt->execute()) {
 
                     return [
                         'success' => true,
-                        'message' => 'Interest sent successfully',
+                        'message' => 'Interest sent successfully again previously it was rejected',
                         'id' => $existing['id']
                     ];
                 }
@@ -327,21 +310,10 @@ class Message
             ";
 
             $stmt = $this->db->prepare($query);
-
-            $stmt->bindValue(
-                ':sender_id',
-                $this->senderId,
-                PDO::PARAM_INT
-            );
-
-            $stmt->bindValue(
-                ':receiver_id',
-                $this->receiverId,
-                PDO::PARAM_INT
-            );
+            $stmt->bindValue(':sender_id',$this->senderId,PDO::PARAM_INT);
+            $stmt->bindValue(':receiver_id',$this->receiverId,PDO::PARAM_INT);
 
             if ($stmt->execute()) {
-
                 return [
                     'success' => true,
                     'message' => 'Interest sent successfully',
@@ -434,7 +406,7 @@ class Message
                     ON p.user_id = ph.user_id
                 LEFT JOIN interests AS i
                     ON i.sender_id = p.user_id  
-                   WHERE  i.receiver_id = :user_id 
+                   WHERE  i.receiver_id = :user_id and i.status = 'pending'
             ";
 
             $stmt = $this->db->prepare($query);
@@ -470,7 +442,7 @@ class Message
                     ON p.user_id = ph.user_id
                 LEFT JOIN interests AS i
                     ON i.receiver_id = p.user_id  
-                   WHERE  i.sender_id = :user_id 
+                   WHERE  i.sender_id = :user_id  AND i.status = 'pending'
             ";
 
             $stmt = $this->db->prepare($query);

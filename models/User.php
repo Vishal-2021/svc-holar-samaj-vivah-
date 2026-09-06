@@ -103,84 +103,110 @@ class User
     }
 
     // Fileter Uers profiles 
-   public function getUserProfiles($page = 1, $perPage = 8, $filters = [])
-   {
-     $offset = ($page - 1) * $perPage;
- 
-     $conditions = [];
-     $params = [];
- 
-     if (!empty($filters['gender'])) {
-         $conditions[] = "p.gender = :gender";
-         $params[':gender'] = $filters['gender'];
-     }
- 
-     if (!empty($filters['location'])) {
-         $conditions[] = "LOWER(p.current_address) LIKE :location";
-         $params[':location'] = '%' . strtolower($filters['location']) . '%';
-     }
- 
-     if (!empty($filters['education'])) {
-         $conditions[] = "p.education = :education";
-         $params[':education'] = $filters['education'];
-     }
- 
-     if (!empty($filters['profession'])) {
-         $conditions[] = "LOWER(p.job) LIKE :profession";
-         $params[':profession'] = '%' . strtolower($filters['profession']) . '%';
-     }
- 
-     $whereSql = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
- 
-     // ✅ FIXED QUERY
-     $query = "
-         SELECT 
-             ph.photo_url AS photo_url,
-             u.user_id,
-             p.full_name,
-             p.education,
-             p.job AS profession,
-             p.current_address AS location,
-             p.annual_income AS income
-         FROM users u
-         JOIN profiles p ON u.user_id = p.user_id
-         JOIN photos ph ON u.user_id = ph.user_id
-         $whereSql
-         LIMIT :perPage OFFSET :offset
-     ";
- 
-     $stmt = $this->db->prepare($query);
- 
-     foreach ($params as $key => $value) {
-         $stmt->bindValue($key, $value);
-     }
- 
-     $stmt->bindValue(':perPage', (int)$perPage, PDO::PARAM_INT);
-     $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-     $stmt->execute();
- 
-     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
- 
-     // ✅ COUNT QUERY
-     $countQuery = "
-         SELECT COUNT(*) 
-         FROM users u
-         JOIN profiles p ON u.user_id = p.user_id
-         $whereSql
-     ";
- 
-     $countStmt = $this->db->prepare($countQuery);
-     foreach ($params as $key => $value) {
-         $countStmt->bindValue($key, $value);
-     }
-     $countStmt->execute();
- 
-     $totalRecords = (int)$countStmt->fetchColumn();
- 
-     return [
-         'status' => 'SUCCESS',
-         'data' => $data,
-         'totalRecords' => $totalRecords
-     ];
-   }
+    public function getUserProfiles($page = 1, $perPage = 9, $filters = [])
+    {
+        $offset = ($page - 1) * $perPage;
+
+        $conditions = [];
+        $params = [];
+
+        // Gender
+        if (!empty($filters['gender'])) {
+            $conditions[] = "p.gender = :gender";
+            $params[':gender'] = $filters['gender'];
+        }
+
+        // Minimum age
+        if ($filters['minAge'] !== null && $filters['minAge'] !== '') {
+            $conditions[] = "TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) >= :minAge";
+            $params[':minAge'] = (int)$filters['minAge'];
+        }
+
+        // Maximum age
+        if ($filters['maxAge'] !== null && $filters['maxAge'] !== '') {
+            $conditions[] = "TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) <= :maxAge";
+            $params[':maxAge'] = (int)$filters['maxAge'];
+        }
+
+
+        // Minimum income
+        if ($filters['minIncome'] !== null && $filters['minIncome'] !== '') {
+            $conditions[] = "CAST(TRIM( REPLACE(LOWER(p.annual_income), 'lakh', '')) AS DECIMAL(10,2)) >= :minIncome";
+            $params[':minIncome'] = (float)$filters['minIncome'];
+        }
+
+        // Maximum income
+        if ($filters['maxIncome'] !== null && $filters['maxIncome'] !== '') {
+            $conditions[] = "CAST(TRIM(REPLACE(LOWER(p.annual_income), 'lakh', '')) AS DECIMAL(10,2)) <= :maxIncome";
+            $params[':maxIncome'] = (float)$filters['maxIncome'];
+        }
+
+        $whereSql = $conditions
+            ? 'WHERE ' . implode(' AND ', $conditions)
+            : '';
+
+        // Get profiles
+        $query = "
+        SELECT 
+            ph.photo_url AS photo_url,
+            u.user_id,
+            p.full_name,
+            p.education,
+            p.job AS profession,
+            p.current_address AS location,
+            p.annual_income AS income,
+            p.gender,
+            TIMESTAMPDIFF(YEAR, p.date_of_birth, CURDATE()) AS age
+        FROM users u
+        JOIN profiles p ON u.user_id = p.user_id
+        JOIN photos ph ON u.user_id = ph.user_id
+        $whereSql
+        LIMIT :perPage OFFSET :offset
+    ";
+
+        $stmt = $this->db->prepare($query);
+
+        foreach ($params as $key => $value) {
+            if (in_array($key, [':minAge', ':maxAge'], true)) {
+                $stmt->bindValue($key, $value, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue($key, $value);
+            }
+        }
+
+        $stmt->bindValue(':perPage', (int)$perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+
+        $stmt->execute();
+
+        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Count total matching profiles
+        $countQuery = "
+        SELECT COUNT(*)
+        FROM users u
+        JOIN profiles p ON u.user_id = p.user_id
+        $whereSql
+    ";
+
+        $countStmt = $this->db->prepare($countQuery);
+
+        foreach ($params as $key => $value) {
+            if (in_array($key, [':minAge', ':maxAge'], true)) {
+                $countStmt->bindValue($key, $value, PDO::PARAM_INT);
+            } else {
+                $countStmt->bindValue($key, $value);
+            }
+        }
+
+        $countStmt->execute();
+
+        $totalRecords = (int)$countStmt->fetchColumn();
+
+        return [
+            'status'       => 'SUCCESS',
+            'data'         => $data,
+            'totalRecords' => $totalRecords
+        ];
+    }
 }
