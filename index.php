@@ -83,11 +83,6 @@ switch ($method) {
             $userController = new UserController($db);
             $userController->searchProfiles($requestBody);
         }
-        if ($path === '/interests') {
-
-            $userController = new UserController($db);
-            $userController->sendInterest($requestBody);
-        }
         if ($path === '/messages') {
             $userController = new UserController($db);
             $userController->sendMessage($requestBody);
@@ -103,29 +98,19 @@ switch ($method) {
                 $userController->getUserProfile($userId);
             }
         }
-        if ($path === '/interests/sent') {
-            if (isset($_GET['id'])) {
+
+        if ($path === '/interests') {
+            if (isset($_GET['id']) && isset($_GET['status']) && isset($_GET['usertype'])) {
                 $userId = $_GET['id'];
+                $status = $_GET['status'];
+                $userType = $_GET['usertype'];
                 $userController = new UserController($db);
-                $userController->getSentInterests($userId);
+                $userController->getInterests($userId, $status, $userType);
             }
         }
 
-        if ($path === '/interests/received') {
-            if (isset($_GET['id'])) {
-                $userId = $_GET['id'];
-                $userController = new UserController($db);
-                $userController->getReceivedInterests($userId);
-            }
-        }
 
-        // if ($path === '/messages/unread') {
-        //     if (isset($_GET['id'])) {
-        //         $userId = $_GET['id'];
-        //         $userController = new UserController($db);
-        //         $userController->getUnreadCount($userId);
-        //     }
-        // }
+
 
         if (preg_match('#^/messages/([0-9]+)/([0-9]+)/?$#', $path, $matches)) {
 
@@ -143,11 +128,6 @@ switch ($method) {
 
     case 'PUT':
 
-        // if ($path === '/user/update') {
-        //     $userController = new UserController($db);
-        //     $userController->updateProfile($requestBody);
-        // }
-        // break;
         if (preg_match('#^/interests/([0-9]+)$#', $path, $matches)) {
 
             $interestId = (int) $matches[1];

@@ -75,7 +75,6 @@ class Message
             }
 
             return false;
-
         } catch (PDOException $e) {
 
             error_log(
@@ -133,7 +132,6 @@ class Message
             $stmt->execute();
 
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         } catch (PDOException $e) {
 
             error_log(
@@ -176,7 +174,6 @@ class Message
             );
 
             return $stmt->execute();
-
         } catch (PDOException $e) {
 
             error_log(
@@ -215,7 +212,6 @@ class Message
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return (int) $result['unread_count'];
-
         } catch (PDOException $e) {
 
             error_log(
@@ -233,122 +229,18 @@ class Message
     |--------------------------------------------------------------------------
     */
 
-
     /**
-     * Send interest
-     *
-     * POST /api/interests
-     */
-    public function sendInterest()
-    {
-        try {
-
-            // Check whether interest already exists
-            $checkQuery = "
-                SELECT id, status
-                FROM interests
-                WHERE sender_id = :sender_id
-                AND receiver_id = :receiver_id
-                LIMIT 1
-            ";
-
-            $checkStmt = $this->db->prepare($checkQuery);
-            $checkStmt->bindValue(':sender_id', $this->senderId, PDO::PARAM_INT);
-            $checkStmt->bindValue(':receiver_id',$this->receiverId,PDO::PARAM_INT);
-            $checkStmt->execute();
-            $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
-
-            if ($existing) {
-
-                // Don't allow sending duplicate pending interest
-                if ($existing['status'] === 'pending') {
-                    return [
-                        'success' => false,
-                        'message' => 'Interest already sent',
-                        'id' => $existing['id']
-                    ];
-                }
-
-                // If previously rejected, allow sending again
-                $updateQuery = "
-                    UPDATE interests
-                    SET
-                        status = 'pending',
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = :id
-                ";
-
-                $updateStmt = $this->db->prepare($updateQuery);
-                $updateStmt->bindValue(':id',$existing['id'],PDO::PARAM_INT);
-
-                if ($updateStmt->execute()) {
-
-                    return [
-                        'success' => true,
-                        'message' => 'Interest sent successfully again previously it was rejected',
-                        'id' => $existing['id']
-                    ];
-                }
-
-                return false;
-            }
-
-
-            // Create new interest
-            $query = "
-                INSERT INTO interests (
-                    sender_id,
-                    receiver_id,
-                    status
-                )
-                VALUES (
-                    :sender_id,
-                    :receiver_id,
-                    'pending'
-                )
-            ";
-
-            $stmt = $this->db->prepare($query);
-            $stmt->bindValue(':sender_id',$this->senderId,PDO::PARAM_INT);
-            $stmt->bindValue(':receiver_id',$this->receiverId,PDO::PARAM_INT);
-
-            if ($stmt->execute()) {
-                return [
-                    'success' => true,
-                    'message' => 'Interest sent successfully',
-                    'id' => $this->db->lastInsertId()
-                ];
-            }
-
-            return false;
-
-        } catch (PDOException $e) {
-
-            error_log(
-                "Message::sendInterest Error: " . $e->getMessage()
-            );
-
-            return false;
-        }
-    }
-
-
-    /**
-     * Accept or reject interest
-     *
+     * Accept or reject or pending or block interest
      * PUT /api/interests/:id
-     *
-     * $status = accepted / rejected
+     * $status = accepted / rejected / pending / blocked
      */
     public function updateInterest($interestId, $status)
     {
         try {
 
-            if (!in_array($status, ['accepted', 'rejected'])) {
+            if (!in_array($status, ['accepted', 'rejected', 'pending', 'blocked'])) {
                 return false;
             }
-
 
             $query = "
                 UPDATE interests
@@ -358,44 +250,26 @@ class Message
             ";
 
             $stmt = $this->db->prepare($query);
-
-            $stmt->bindValue(
-                ':status',
-                $status,
-                PDO::PARAM_STR
-            );
-
-            $stmt->bindValue(
-                ':id',
-                $interestId,
-                PDO::PARAM_INT
-            );
-
+            $stmt->bindValue(':status', $status, PDO::PARAM_STR);
+            $stmt->bindValue(':id', $interestId, PDO::PARAM_INT);
 
             if ($stmt->execute()) {
-
                 return $stmt->rowCount() > 0;
             }
 
             return false;
-
         } catch (PDOException $e) {
-
-            error_log(
-                "Message::updateInterest Error: " . $e->getMessage()
-            );
-
+            error_log("Message::updateInterest Error: " . $e->getMessage());
             return false;
         }
     }
 
-
+    
     /**
      * Get sent and received interests
-     *
      * GET /api/interests
      */
-    public function getReceivedInterests($userId)
+    public function getReceivedInterests($userId, $status = 'pending')
     {
         try {
 
@@ -406,32 +280,27 @@ class Message
                     ON p.user_id = ph.user_id
                 LEFT JOIN interests AS i
                     ON i.sender_id = p.user_id  
-                   WHERE  i.receiver_id = :user_id and i.status = 'pending'
+                   WHERE  i.receiver_id = :user_id and i.status = :status
             ";
 
             $stmt = $this->db->prepare($query);
-
-            $stmt->bindValue(
-                ':user_id',
-                $userId,
-                PDO::PARAM_INT
-            );
-
+            $stmt->bindValue(':user_id',$userId,PDO::PARAM_INT);
+            $stmt->bindValue(':status',$status,PDO::PARAM_STR);
             $stmt->execute();
 
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         } catch (PDOException $e) {
-
-            error_log(
-                "Message::getReceivedInterests Error: " . $e->getMessage()
-            );
-
+            error_log("Message::getReceivedInterests Error: " . $e->getMessage());
             return false;
         }
     }
 
-     public function getSentInterests($userId)
+    /**
+     * Get sent and sent interests
+     * GET /api/interests
+     */
+    public function getSentInterests($userId)
     {
         try {
 
@@ -442,27 +311,16 @@ class Message
                     ON p.user_id = ph.user_id
                 LEFT JOIN interests AS i
                     ON i.receiver_id = p.user_id  
-                   WHERE  i.sender_id = :user_id  AND i.status = 'pending'
-            ";
+                   WHERE  i.sender_id = :user_id 
+                   ";
 
             $stmt = $this->db->prepare($query);
-
-            $stmt->bindValue(
-                ':user_id',
-                $userId,
-                PDO::PARAM_INT
-            );
-
+            $stmt->bindValue(':user_id',$userId,PDO::PARAM_INT);
             $stmt->execute();
-
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         } catch (PDOException $e) {
-
-            error_log(
-                "Message::getSentInterests Error: " . $e->getMessage()
-            );
-
+            error_log("Message::getSentInterests Error: " . $e->getMessage());
             return false;
         }
     }

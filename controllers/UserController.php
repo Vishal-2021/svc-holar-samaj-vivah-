@@ -118,7 +118,7 @@ class UserController
 
         if ($profileId) {
             // Assign role to user
-            $this->userModel->userId = $data['userId'];
+            $this->userModel->user_id = $data['user_id'];
             $this->userModel->role = 'user';
             $this->userModel->updateRole();
 
@@ -233,6 +233,7 @@ class UserController
                 'status' => 'SUCCESS',
                 'message' => 'Login successful',
                 'user' => [
+                    'gender' => $user['gender'],
                     'user_id' => $user['user_id'],
                     'email'   => $user['email'],
                     'role' => $user['role']
@@ -284,103 +285,6 @@ class UserController
 
     // ------------------------------------ New added methods for Interests and Messages ------------------------------------
 
-    // POST /api/interests
-    public function sendInterest($data)
-    {
-
-        $data = json_decode($data, true);
-
-        $senderId = $data['sender_id'];
-        $receiverId = $data['receiver_id'];
-
-        if (!$data || empty($receiverId)) {
-            http_response_code(400);
-
-            echo json_encode([
-                'status' => 'FAILED',
-                'message' => 'receiver_id is required'
-            ]);
-
-            return;
-        }
-
-        if ($senderId == $receiverId) {
-            http_response_code(400);
-
-            echo json_encode([
-                'status' => 'FAILED',
-                'message' => 'You cannot send interest to yourself'
-            ]);
-
-            return;
-        }
-
-        $this->messageModel->senderId = $senderId;
-        $this->messageModel->receiverId = $receiverId;
-
-        $result = $this->messageModel->sendInterest();
-
-        if ($result === false) {
-            http_response_code(500);
-
-            echo json_encode([
-                'status' => 'FAILED',
-                'message' => 'Failed to send interest'
-            ]);
-
-            return;
-        }
-
-        echo json_encode([
-            'status' => 'SUCCESS',
-            'message' => $result['message'],
-            'interest_id' => $result['id']
-        ]);
-    }
-
-
-    // GET /api/interests
-    public function getReceivedInterests($userId)
-    {
-        $result = $this->messageModel->getReceivedInterests($userId);
-
-        if ($result === false) {
-            http_response_code(500);
-
-            echo json_encode([
-                'status' => 'FAILED',
-                'message' => 'Failed to fetch Received interests'
-            ]);
-
-            return;
-        }
-
-        echo json_encode([
-            'status' => 'SUCCESS',
-            'data' => $result
-        ]);
-    }
-    public function getSentInterests($userId)
-    {
-        $result = $this->messageModel->getSentInterests($userId);
-
-        if ($result === false) {
-            http_response_code(500);
-
-            echo json_encode([
-                'status' => 'FAILED',
-                'message' => 'Failed to fetch sent interests'
-            ]);
-
-            return;
-        }
-
-        echo json_encode([
-            'status' => 'SUCCESS',
-            'data' => $result
-        ]);
-    }
-
 
     // PUT /api/interests/:id
     public function updateInterest($interestId, $data)
@@ -417,6 +321,41 @@ class UserController
             'message' => 'Interest ' . $status . ' successfully'
         ]);
     }
+
+    // GET /api/interests
+    public function getInterests($userId, $status, $userType)
+    {
+        $result = null;
+        if (!in_array($status, ['pending', 'accepted', 'rejected', 'blocked'], true)) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Status must be pending, accepted, rejected or blocked'
+            ]);
+            return;
+        }
+
+        if($userType === 'receiver') {
+            $result = $this->messageModel->getReceivedInterests($userId, $status);
+        } else if($userType === 'sender') {
+            $result = $this->messageModel->getSentInterests($userId);
+        }
+
+        if ($result === false) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'FAILED',
+                'message' => 'Failed to fetch Interests'
+            ]);
+           return;
+        }
+
+        echo json_encode([
+            'status' => 'SUCCESS',
+            'data' => $result
+        ]);
+    }
+
 
 
     // POST /api/messages

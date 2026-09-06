@@ -77,7 +77,7 @@ class User
     // Get user by email
     public function getUserByEmail()
     {
-        $query = "SELECT * FROM users WHERE email = :email LIMIT 1";
+        $query = "SELECT p.gender, u.* FROM users u join profiles p on u.user_id = p.user_id  WHERE u.email = :email LIMIT 1";
         $stmt = $this->db->prepare($query);
 
         $stmt->bindParam(':email', $this->email);
